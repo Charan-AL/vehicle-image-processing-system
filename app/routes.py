@@ -11,7 +11,7 @@ from app.background import process_image
 from app.config import UPLOAD_DIR
 from app.database import get_db
 from app.models import Image
-from app.schemas import UploadResponse
+from app.schemas import ResultResponse, StatusResponse, UploadResponse
 from app.utils import get_image_extension, save_uploaded_image, validate_image_content_type
 
 # All upload endpoints share this router, mounted directly on the app in main.py.
@@ -73,3 +73,42 @@ async def upload_image(
         ) from error
     finally:
         await file.close()
+
+
+@router.get("/images/{image_id}/status", response_model=StatusResponse)
+def get_image_status(image_id: int, db: Session = Depends(get_db)) -> StatusResponse:
+    """Return the current processing status for an uploaded image."""
+    image = db.get(Image, image_id)
+    if image is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Image not found.",
+        )
+
+    analysis = image.analysis_result
+    return StatusResponse(
+        id=image.id,
+        filename=image.filename,
+        status=image.status,
+        created_at=image.created_at,
+        updated_at=analysis.completed_at if analysis is not None else None,
+    )
+
+
+@router.get("/images/{image_id}/result", response_model=ResultResponse)
+def get_image_result(image_id: int, db: Session = Depends(get_db)) -> ResultResponse:
+    """Return the stored analysis result for an uploaded image."""
+    image = db.get(Image, image_id)
+    if image is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Image not found.",
+        )
+
+    if image.analysis_result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Analysis result is not available yet.",
+        )
+
+    return image.analysis_result
