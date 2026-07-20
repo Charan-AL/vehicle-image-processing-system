@@ -32,41 +32,14 @@ class UploadResponse(BaseModel):
     }
     """
 
-    # Image ID from database (assigned by database on creation)
     id: int = Field(
-        description="Unique image ID assigned by database",
+        description="Unique image ID assigned by the database",
         example=1
     )
 
-    # Original filename uploaded by user
-    filename: str = Field(
-        description="Original filename when uploaded",
-        example="car_001.jpg"
-    )
-
-    # Full path where image is stored
-    filepath: str = Field(
-        description="Full file path where image is stored",
-        example="uploads/car_001.jpg"
-    )
-
-    # Current processing status
-    # Always "pending" immediately after upload
     status: str = Field(
-        description="Current processing status: pending, processing, completed, failed",
+        description="Current processing status",
         example="pending"
-    )
-
-    # User-friendly message about what happened
-    message: str = Field(
-        description="Message describing the upload result",
-        example="Image uploaded successfully. Processing started."
-    )
-
-    # When the image was created/uploaded
-    created_at: datetime = Field(
-        description="Timestamp when image was uploaded",
-        example="2024-01-15T10:30:00"
     )
 
     # Configuration: model_config tells Pydantic to handle ORM models
@@ -76,11 +49,7 @@ class UploadResponse(BaseModel):
         "json_schema_extra": {
             "example": {
                 "id": 1,
-                "filename": "car_001.jpg",
-                "filepath": "uploads/car_001.jpg",
-                "status": "pending",
-                "message": "Image uploaded successfully. Processing started.",
-                "created_at": "2024-01-15T10:30:00"
+                "status": "pending"
             }
         }
     }

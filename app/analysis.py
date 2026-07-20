@@ -1,16 +1,15 @@
-"""
-Core image analysis functions using OpenCV and EasyOCR.
-Will contain functions for:
-- Image preprocessing
-- License plate detection
-- Text extraction (OCR)
-- Result formatting
+"""Image analysis interface."""
 
-Implementation details:
-- OpenCV: Image processing, edge detection, contour finding
-- EasyOCR: License plate text recognition
-- Modular functions: Each task separated for reusability
-"""
+from typing import Any
 
-# Image analysis functions will be implemented in the next phase
-# Placeholder for future implementation
+
+def analyze_image(filepath: str) -> dict[str, Any]:
+    """Return the current analysis result shape without processing image data."""
+    return {
+        "blur_score": None,
+        "brightness_score": None,
+        "plate_text": None,
+        "plate_valid": None,
+        "duplicate": None,
+        "remarks": "Analysis not implemented.",
+    }

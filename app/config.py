@@ -25,7 +25,9 @@ API_VERSION = "1.0.0"
 
 # Upload configuration
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
-UPLOAD_DIR = "uploads"
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+ALLOWED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png"}
 
 # Configuration summary (for debugging)
 def get_config_summary() -> dict:

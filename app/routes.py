@@ -1,16 +1,75 @@
-"""
-FastAPI route definitions for API endpoints.
-Will contain endpoints for:
-- Image upload
-- Processing status
-- Results retrieval
-- Batch operations
+"""FastAPI routes for image uploads."""
 
-Implementation details:
-- Router: APIRouter for organized endpoint grouping
-- Dependencies: Injection of database session, background tasks
-- Error handling: Proper HTTP status codes and error messages
-"""
+from pathlib import Path
+from uuid import uuid4
 
-# API routes will be implemented in the next phase
-# Placeholder for future implementation
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.background import process_image
+from app.config import UPLOAD_DIR
+from app.database import get_db
+from app.models import Image
+from app.schemas import UploadResponse
+from app.utils import get_image_extension, save_uploaded_image, validate_image_content_type
+
+# All upload endpoints share this router, mounted directly on the app in main.py.
+router = APIRouter(tags=["Images"])
+
+
+@router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_image(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> UploadResponse:
+    """Accept a vehicle image upload and persist it with a pending status.
+
+    Steps:
+    1. Validate the file extension (must be .jpg, .jpeg, or .png).
+    2. Validate the declared MIME type (must be image/jpeg or image/png).
+    3. Generate a UUID filename so the stored file name is globally unique.
+    4. Stream the file to disk inside the uploads/ directory while checking
+       the file signature (magic bytes) and enforcing the configured size cap.
+    5. Insert a row into the images table with status="pending".
+    6. Commit the transaction and return {"id": ..., "status": "pending"}.
+
+    If the database write fails the uploaded file is cleaned up so the
+    filesystem stays consistent with the database.
+    """
+    filepath: Path | None = None
+    try:
+        # Step 1 & 2: file type checks before touching the filesystem
+        extension = get_image_extension(file.filename)
+        validate_image_content_type(file.content_type)
+
+        # Step 3: UUID filename — the original name is preserved in the DB
+        filepath = Path(UPLOAD_DIR) / f"{uuid4()}{extension}"
+
+        # Step 4: write the file and verify magic bytes + size
+        await save_uploaded_image(file, filepath)
+
+        # Step 5: insert metadata row; status defaults to "pending" in the model
+        image = Image(
+            filename=file.filename or filepath.name,
+            filepath=filepath.as_posix(),
+        )
+        db.add(image)
+        db.commit()
+        db.refresh(image)
+        background_tasks.add_task(process_image, image.id)
+
+        # Step 6: return exactly the required shape
+        return UploadResponse(id=image.id, status=image.status)
+
+    except SQLAlchemyError as error:
+        db.rollback()
+        if filepath is not None:
+            filepath.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to save image metadata to the database.",
+        ) from error
+    finally:
+        await file.close()

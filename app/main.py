@@ -6,8 +6,7 @@ Initializes the FastAPI app with middleware, routers, and configurations.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Import routers (will be added later)
-# from app.routes import images
+from app.routes import router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -44,8 +43,7 @@ async def root():
         "docs": "/api/docs"
     }
 
-# Include routers (will be uncommented once routes.py is created)
-# app.include_router(images.router, prefix="/api/images", tags=["Images"])
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
