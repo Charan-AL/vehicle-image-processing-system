@@ -7,6 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Up
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.analysis import BLUR_THRESHOLD, LOW_LIGHT_THRESHOLD
 from app.background import process_image
 from app.config import UPLOAD_DIR
 from app.database import get_db
@@ -111,4 +112,21 @@ def get_image_result(image_id: int, db: Session = Depends(get_db)) -> ResultResp
             detail="Analysis result is not available yet.",
         )
 
-    return image.analysis_result
+    result = image.analysis_result
+    return ResultResponse(
+        id=result.id,
+        image_id=result.image_id,
+        blur_score=result.blur_score,
+        is_blurry=(result.blur_score < BLUR_THRESHOLD)
+        if result.blur_score is not None
+        else None,
+        brightness_score=result.brightness_score,
+        low_light=(result.brightness_score < LOW_LIGHT_THRESHOLD)
+        if result.brightness_score is not None
+        else None,
+        plate_text=result.plate_text,
+        plate_valid=result.plate_valid,
+        duplicate=result.duplicate,
+        remarks=result.remarks,
+        completed_at=result.completed_at,
+    )

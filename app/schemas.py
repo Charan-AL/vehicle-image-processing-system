@@ -164,17 +164,27 @@ class ResultResponse(BaseModel):
     # Calculated using OpenCV edge detection
     blur_score: Optional[float] = Field(
         default=None,
-        description="Blur quality metric (0.0=blurry, 1.0=sharp)",
-        example=0.87
+        description="Variance of Laplacian blur score",
+        example=293.80
     )
 
-    # Brightness quality metric (0.0 to 1.0)
-    # 0.0 = too dark (underexposed), 1.0 = too bright (overexposed)
-    # Optimal is around 0.5-0.7
+    is_blurry: Optional[bool] = Field(
+        default=None,
+        description="Whether the image is below the blur threshold",
+        example=False
+    )
+
+    # Average grayscale intensity from 0 (black) to 255 (white)
     brightness_score: Optional[float] = Field(
         default=None,
-        description="Brightness metric (0.0=dark, 1.0=bright)",
-        example=0.72
+        description="Average grayscale intensity from 0 (dark) to 255 (bright)",
+        example=142.35
+    )
+
+    low_light: Optional[bool] = Field(
+        default=None,
+        description="Whether average grayscale intensity is below the low-light threshold",
+        example=False
     )
 
     # License plate text extracted by OCR
