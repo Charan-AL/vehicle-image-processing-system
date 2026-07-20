@@ -7,3 +7,4 @@ opencv-python==4.8.1.78
 easyocr==1.7.1
 pydantic==2.5.0
 pydantic-settings==2.1.0
+python-dotenv==1.0.0
