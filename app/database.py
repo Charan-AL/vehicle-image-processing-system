@@ -9,9 +9,12 @@ Components:
 """
 
 import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from typing import Generator
+
+load_dotenv()
 
 # Read database configuration from environment variables
 # Format: postgresql://username:password@host:port/database_name
