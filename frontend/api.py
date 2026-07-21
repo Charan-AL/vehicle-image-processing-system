@@ -5,18 +5,24 @@ import requests
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 REQUEST_TIMEOUT = 30
+UPLOAD_TIMEOUT = 180
 
 
 class APIError(Exception):
     """Raised when the backend cannot complete a frontend request."""
 
 
-def _request_json(method: str, path: str, **kwargs: Any) -> dict[str, Any]:
+def _request_json(
+    method: str,
+    path: str,
+    timeout: int = REQUEST_TIMEOUT,
+    **kwargs: Any,
+) -> dict[str, Any]:
     try:
         response = requests.request(
             method,
             f"{BACKEND_URL}{path}",
-            timeout=REQUEST_TIMEOUT,
+            timeout=timeout,
             **kwargs,
         )
     except requests.ConnectionError as error:
@@ -52,7 +58,9 @@ def upload_image(file: Any) -> dict[str, Any]:
             file.type or "application/octet-stream",
         )
     }
-    return _request_json("POST", "/upload", files=files)
+    return _request_json(
+        "POST", "/upload", timeout=UPLOAD_TIMEOUT, files=files
+    )
 
 
 def get_status(processing_id: int | str) -> dict[str, Any]:
