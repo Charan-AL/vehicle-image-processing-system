@@ -42,15 +42,20 @@ def detect_brightness(image: np.ndarray) -> dict[str, float | bool]:
 
 
 def read_ocr_text(reader: easyocr.Reader, image: np.ndarray) -> list[str]:
-    """Return OCR detections above the configured confidence threshold."""
+    """Return confident OCR detections in their visual reading order."""
     results = reader.readtext(image, detail=1, paragraph=False)
-    return [
-        detection[1].strip()
+    detections = [
+        detection
         for detection in results
         if len(detection) >= 3
         and detection[1].strip()
         and float(detection[2]) > OCR_CONFIDENCE_THRESHOLD
     ]
+    detections.sort(key=lambda detection: (
+        min(point[1] for point in detection[0]),
+        min(point[0] for point in detection[0]),
+    ))
+    return [detection[1].strip() for detection in detections]
 
 
 def extract_plate_region_text(image: np.ndarray) -> str:
@@ -85,10 +90,15 @@ def extract_plate_region_text(image: np.ndarray) -> str:
         bottom = min(lower_image.shape[0], y + candidate_height + padding_y)
         candidates.append(lower_image[top:bottom, left:right])
 
-    candidates.append(lower_image)
+    candidates.extend([
+        lower_image,
+        image[int(height * 0.62):int(height * 0.82), :],
+    ])
     texts: list[str] = []
     for candidate in candidates:
-        enlarged = cv2.resize(candidate, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+        if candidate.size == 0:
+            continue
+        enlarged = cv2.resize(candidate, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC)
         grayscale = cv2.cvtColor(enlarged, cv2.COLOR_BGR2GRAY)
         enhanced = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)).apply(grayscale)
         _, binary = cv2.threshold(
@@ -97,8 +107,16 @@ def extract_plate_region_text(image: np.ndarray) -> str:
             255,
             cv2.THRESH_BINARY + cv2.THRESH_OTSU,
         )
-        texts.extend(read_ocr_text(reader, enlarged))
-        texts.extend(read_ocr_text(reader, binary))
+        adaptive = cv2.adaptiveThreshold(
+            enhanced,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            31,
+            11,
+        )
+        for variant in (enlarged, enhanced, binary, adaptive):
+            texts.extend(read_ocr_text(reader, variant))
 
     return "\n".join(dict.fromkeys(texts))
 
