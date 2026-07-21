@@ -7,6 +7,8 @@ from typing import Any
 import cv2
 import easyocr
 
+from app.plate_validation import is_valid_registration_number, normalize_plate_text
+
 
 BLUR_THRESHOLD = 100.0
 LOW_LIGHT_THRESHOLD = 80.0
@@ -45,9 +47,14 @@ def analyze_image(filepath: str) -> dict[str, Any]:
         remarks += " Low light detected."
 
     plate_text = None
+    plate_valid = None
     try:
-        plate_text = extract_text(filepath)
-        remarks += " Text extracted." if plate_text else " No text detected."
+        plate_text = normalize_plate_text(extract_text(filepath))
+        if plate_text:
+            plate_valid = is_valid_registration_number(plate_text)
+            remarks += " Valid registration number." if plate_valid else " Invalid registration number."
+        else:
+            remarks += " No text detected."
     except Exception:
         logger.exception("OCR failed for image %s.", filepath)
         remarks += " OCR could not be completed."
@@ -58,7 +65,7 @@ def analyze_image(filepath: str) -> dict[str, Any]:
         "brightness_score": brightness_score,
         "low_light": low_light,
         "plate_text": plate_text,
-        "plate_valid": None,
+        "plate_valid": plate_valid,
         "duplicate": None,
         "remarks": remarks,
     }

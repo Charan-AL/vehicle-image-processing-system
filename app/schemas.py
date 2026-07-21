@@ -187,11 +187,11 @@ class ResultResponse(BaseModel):
         example=False
     )
 
-    # All text extracted by EasyOCR
+    # Normalized registration text extracted by EasyOCR
     # May be None if OCR fails or finds no text
     plate_text: Optional[str] = Field(
         default=None,
-        description="All text extracted from the image by OCR",
+        description="Normalized vehicle registration text extracted by OCR",
         example="MH02AB1234"
     )
 
