@@ -11,6 +11,8 @@ IMPORTANT:
 - Safe to run multiple times (idempotent)
 """
 
+from sqlalchemy import text
+
 from app.database import engine, Base
 from app.models import Image, AnalysisResult
 
@@ -26,6 +28,12 @@ def create_tables():
         print("\n[Step 1] Creating tables from models...")
         Base.metadata.create_all(bind=engine)
         
+        # Upgrade existing installations so OCR output is not truncated.
+        with engine.begin() as connection:
+            connection.execute(
+                text("ALTER TABLE analysis_results ALTER COLUMN plate_text TYPE TEXT")
+            )
+
         # Verify tables were created
         print("[Step 2] Verifying tables...")
         with engine.connect() as connection:
@@ -65,7 +73,7 @@ def create_tables():
         print("  - image_id (FOREIGN KEY → images.id)")
         print("  - blur_score")
         print("  - brightness_score")
-        print("  - plate_text")
+        print("  - plate_text (all EasyOCR text)")
         print("  - plate_valid")
         print("  - duplicate")
         print("  - remarks")

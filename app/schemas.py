@@ -187,12 +187,11 @@ class ResultResponse(BaseModel):
         example=False
     )
 
-    # License plate text extracted by OCR
-    # Result from EasyOCR model
-    # May be None if no plate detected
+    # All text extracted by EasyOCR
+    # May be None if OCR fails or finds no text
     plate_text: Optional[str] = Field(
         default=None,
-        description="Extracted license plate text from OCR",
+        description="All text extracted from the image by OCR",
         example="MH02AB1234"
     )
 

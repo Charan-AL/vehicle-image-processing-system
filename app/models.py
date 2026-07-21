@@ -7,7 +7,7 @@ Models:
 """
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -78,9 +78,8 @@ class AnalysisResult(Base):
     # Calculated from pixel intensity averages
     brightness_score = Column(Float, nullable=True)
 
-    # Extracted license plate text from OCR
-    # Result of EasyOCR model (e.g., "ABC1234" or "DL-01AB2024")
-    plate_text = Column(String(50), nullable=True)
+    # All text extracted from the image by EasyOCR
+    plate_text = Column(Text, nullable=True)
 
     # Whether detected plate text is valid
     # True: valid format, False: invalid/unrecognized format
