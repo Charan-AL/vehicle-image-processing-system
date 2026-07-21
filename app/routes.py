@@ -99,8 +99,11 @@ def get_image_status(
     )
 
 
+@router.get("/result/{image_id}", response_model=ResultResponse)
 @router.get("/images/{image_id}/result", response_model=ResultResponse)
-def get_image_result(image_id: int, db: Session = Depends(get_db)) -> ResultResponse:
+def get_image_result(
+    image_id: int = Path(..., gt=0), db: Session = Depends(get_db)
+) -> ResultResponse:
     """Return the stored analysis result for an uploaded image."""
     image = db.get(Image, image_id)
     if image is None:
