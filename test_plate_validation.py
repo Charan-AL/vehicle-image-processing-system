@@ -17,9 +17,14 @@ def test_standard_plate_without_series_is_valid():
 
 
 def test_registration_number_is_found_in_combined_ocr_text():
-    ocr_text = "PUNE FC ROAD MH 12 NW 8556 CNG"
+    ocr_text = "PUNE FC ROAD 7755900813 MH 12 NW 8556 CNG"
 
     assert find_registration_number(ocr_text) == "MH12NW8556"
+
+
+def test_unrecognized_state_code_is_invalid():
+    assert is_valid_registration_number("RY775590") is False
+    assert find_registration_number("PUNE FC ROAD 7755900813 RY775590") is None
 
 
 def test_delhi_style_plate_with_single_letter_series_is_valid():
