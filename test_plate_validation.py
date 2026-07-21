@@ -40,6 +40,11 @@ def test_mh12n8556_found_in_ocr_context():
     assert find_registration_number(ocr_text) == "MH12N8556"
 
 
+def test_noisy_easyocr_tokens_are_reconstructed():
+    ocr_text = "MHIZN\nCNG\nAQ4EWH\n48556\nMHI2N\nH8556\nPUNE-FCROAD"
+    assert find_registration_number(ocr_text) == "MH12N8556"
+
+
 def test_split_plate_tokens_across_lines_are_merged():
     # Simulates EasyOCR returning plate parts on separate detection lines
     # Strategy 4 (sliding-window) must reassemble them.

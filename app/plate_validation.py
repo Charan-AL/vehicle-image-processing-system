@@ -34,6 +34,10 @@ BHARAT_SERIES_VALIDATE_PATTERN = re.compile(r"^\d{2}BH\d{4}[A-Z]{1,2}$")
 
 # Remove non-alphanumeric and common OCR separators
 SEPARATORS_PATTERN = re.compile(r"[\s\-./·|]+")
+SPLIT_PLATE_PREFIX_PATTERN = re.compile(
+    rf"^(?:{STATE_CODE_PATTERN})\d{{1,2}}[A-Z]{{1,3}}$"
+)
+SPLIT_PLATE_SERIAL_PATTERN = re.compile(r"[A-Z0-9]*?(\d{4})$")
 
 # Map of common OCR character misreadings
 OCR_CORRECTIONS = {
@@ -166,6 +170,33 @@ def find_registration_number(ocr_text: str | None) -> str | None:
                     if plate:
                         logger.info(f"Found plate (window {start}+{window} corrected): {plate}")
                         return plate
+
+    # Strategy 5: pair a plate prefix with a later four-digit serial token.
+    # EasyOCR commonly returns the prefix and serial as separate detections and
+    # may prepend one confused character to the serial.
+    normalized_lines = []
+    for line in lines:
+        normalized_line = normalize_plate_text(line)
+        if not normalized_line or len(normalized_line) < 4:
+            continue
+        if normalized_line[:2] in INDIAN_STATES and len(normalized_line) >= 4:
+            district = normalized_line[2:4].translate(
+                str.maketrans(OCR_CORRECTIONS)
+            )
+            normalized_line = normalized_line[:2] + district + normalized_line[4:]
+        normalized_lines.append(normalized_line)
+
+    for prefix_index, prefix in enumerate(normalized_lines):
+        if not SPLIT_PLATE_PREFIX_PATTERN.fullmatch(prefix):
+            continue
+        for serial in normalized_lines[prefix_index + 1:]:
+            serial_match = SPLIT_PLATE_SERIAL_PATTERN.search(serial)
+            if not serial_match:
+                continue
+            candidate = prefix + serial_match.group(1)
+            if is_valid_registration_number(candidate):
+                logger.info("Found plate from split tokens: %s", candidate)
+                return candidate
 
     logger.warning("No registration number found in OCR text")
     return None
