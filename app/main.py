@@ -6,6 +6,7 @@ Initializes the FastAPI app with middleware, routers, and configurations.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database import ensure_analysis_result_schema
 from app.routes import router
 
 # Initialize FastAPI app
@@ -26,6 +27,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+def migrate_database() -> None:
+    ensure_analysis_result_schema()
+
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])

@@ -33,6 +33,12 @@ def create_tables():
             connection.execute(
                 text("ALTER TABLE analysis_results ALTER COLUMN plate_text TYPE TEXT")
             )
+            connection.execute(
+                text(
+                    "ALTER TABLE analysis_results "
+                    "ADD COLUMN IF NOT EXISTS extracted_text TEXT"
+                )
+            )
 
         # Verify tables were created
         print("[Step 2] Verifying tables...")
@@ -73,7 +79,8 @@ def create_tables():
         print("  - image_id (FOREIGN KEY → images.id)")
         print("  - blur_score")
         print("  - brightness_score")
-        print("  - plate_text (all EasyOCR text)")
+        print("  - plate_text (normalized registration number)")
+        print("  - extracted_text (all EasyOCR text)")
         print("  - plate_valid")
         print("  - duplicate")
         print("  - remarks")

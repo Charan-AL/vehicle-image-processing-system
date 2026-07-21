@@ -31,6 +31,7 @@ def process_image(image_id: int) -> None:
         result.blur_score = analysis.get("blur_score")
         result.brightness_score = analysis.get("brightness_score")
         result.plate_text = analysis.get("plate_text")
+        result.extracted_text = analysis.get("extracted_text")
         result.plate_valid = analysis.get("plate_valid")
         result.duplicate = analysis.get("duplicate")
         result.remarks = analysis.get("remarks")
@@ -48,6 +49,7 @@ def process_image(image_id: int) -> None:
                     result = AnalysisResult(image_id=image.id)
                     db.add(result)
                 result.plate_text = None
+                result.extracted_text = None
                 result.plate_valid = None
                 result.duplicate = None
                 result.remarks = "Processing failed. Check the server logs for details."

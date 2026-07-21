@@ -54,7 +54,7 @@ async def upload_image(
         # Step 5: insert metadata row; status defaults to "pending" in the model
         image = Image(
             filename=file.filename or filepath.name,
-            filepath=filepath.as_posix(),
+            filepath=filepath.resolve().as_posix(),
         )
         db.add(image)
         db.commit()
@@ -125,6 +125,7 @@ def get_image_result(image_id: int, db: Session = Depends(get_db)) -> ResultResp
         if result.brightness_score is not None
         else None,
         plate_text=result.plate_text,
+        extracted_text=result.extracted_text,
         plate_valid=result.plate_valid,
         duplicate=result.duplicate,
         remarks=result.remarks,

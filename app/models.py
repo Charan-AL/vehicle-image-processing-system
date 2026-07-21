@@ -78,8 +78,11 @@ class AnalysisResult(Base):
     # Calculated from pixel intensity averages
     brightness_score = Column(Float, nullable=True)
 
-    # All text extracted from the image by EasyOCR
+    # Normalized registration number detected in the image
     plate_text = Column(Text, nullable=True)
+
+    # Raw text extracted from the image by EasyOCR
+    extracted_text = Column(Text, nullable=True)
 
     # Whether detected plate text is valid
     # True: valid format, False: invalid/unrecognized format

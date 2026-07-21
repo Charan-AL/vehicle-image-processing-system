@@ -195,6 +195,12 @@ class ResultResponse(BaseModel):
         example="MH02AB1234"
     )
 
+    extracted_text: Optional[str] = Field(
+        default=None,
+        description="Raw text extracted from the image by OCR",
+        example="MH02AB1234\nPUNE FC ROAD"
+    )
+
     # Whether the detected plate text is valid
     # True = matches expected license plate format
     # False = invalid format or unparseable

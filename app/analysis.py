@@ -130,7 +130,12 @@ def extract_plate_region_text(image: np.ndarray) -> str:
             31,
             11,
         )
-        for variant in (enlarged, enhanced, binary, adaptive):
+        sharpened = cv2.filter2D(
+            enhanced,
+            -1,
+            np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]),
+        )
+        for variant in (enlarged, enhanced, binary, adaptive, sharpened):
             texts.extend(
                 read_ocr_text(
                     reader,
@@ -215,15 +220,13 @@ def analyze_image(filepath: str) -> dict[str, Any]:
         **detect_blur(grayscale_image),
         **detect_brightness(grayscale_image),
     }
-    plate = {"plate_text": None, "plate_valid": False}
-    try:
-        plate = validate_plate(extract_text(filepath))
-    except Exception:
-        logger.exception("OCR failed for image %s.", filepath)
+    extracted_text = extract_text(filepath)
+    plate = validate_plate(extracted_text)
 
     return {
         **quality,
         **plate,
+        "extracted_text": extracted_text or None,
         "duplicate": False,
         "remarks": build_remarks(quality, plate),
     }

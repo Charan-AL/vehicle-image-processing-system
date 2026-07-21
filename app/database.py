@@ -10,7 +10,7 @@ Components:
 
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from typing import Generator
 
@@ -52,6 +52,21 @@ SessionLocal = sessionmaker(
 # Create declarative base for ORM models
 # All database models will inherit from this Base class
 Base = declarative_base()
+
+
+def ensure_analysis_result_schema() -> None:
+    """Add the raw OCR output column to existing installations."""
+    if not inspect(engine).has_table("analysis_results"):
+        return
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE analysis_results "
+                "ADD COLUMN IF NOT EXISTS extracted_text TEXT"
+            )
+        )
+
 
 # Dependency function to get database session
 # Used in FastAPI dependency injection for routes
