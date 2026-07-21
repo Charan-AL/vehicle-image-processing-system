@@ -22,46 +22,50 @@ def get_ocr_reader() -> easyocr.Reader:
     return easyocr.Reader(["en"], gpu=False)
 
 
+def read_ocr_text(reader: easyocr.Reader, image: np.ndarray) -> list[str]:
+    results = reader.readtext(image, detail=1, paragraph=False)
+    return [
+        detection[1].strip()
+        for detection in results
+        if len(detection) >= 3 and detection[1].strip() and float(detection[2]) > 0.25
+    ]
+
+
 def extract_plate_region_text(image: np.ndarray) -> str:
-    """Extract text specifically from the license plate region.
-
-    Uses color and position heuristics to isolate the plate area.
-    """
-    h, w = image.shape[:2]
+    """Extract text from likely license-plate regions."""
+    height, width = image.shape[:2]
     reader = get_ocr_reader()
+    lower_image = image[int(height * 0.55):int(height * 0.95), :]
+    hsv = cv2.cvtColor(lower_image, cv2.COLOR_BGR2HSV)
+    yellow_mask = cv2.inRange(hsv, np.array([15, 55, 80]), np.array([45, 255, 255]))
+    contours, _ = cv2.findContours(yellow_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # License plates are typically in lower half of vehicle images
-    # Scan from 60% down to 95% of image height
-    plate_roi_start = int(h * 0.6)
-    plate_roi_end = int(h * 0.95)
-    plate_region = image[plate_roi_start:plate_roi_end, :]
+    candidates: list[np.ndarray] = []
+    for contour in contours:
+        x, y, candidate_width, candidate_height = cv2.boundingRect(contour)
+        aspect_ratio = candidate_width / candidate_height if candidate_height else 0
+        if candidate_width < width * 0.08 or not 1.5 <= aspect_ratio <= 6:
+            continue
 
-    # Enhance contrast to make plate text more readable
-    if len(plate_region.shape) == 3:
-        gray = cv2.cvtColor(plate_region, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = plate_region
+        padding_x = max(4, int(candidate_width * 0.08))
+        padding_y = max(4, int(candidate_height * 0.2))
+        left = max(0, x - padding_x)
+        top = max(0, y - padding_y)
+        right = min(lower_image.shape[1], x + candidate_width + padding_x)
+        bottom = min(lower_image.shape[0], y + candidate_height + padding_y)
+        candidates.append(lower_image[top:bottom, left:right])
 
-    # Apply CLAHE for better contrast
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    enhanced = clahe.apply(gray)
+    candidates.append(lower_image)
+    texts: list[str] = []
+    for candidate in candidates:
+        enlarged = cv2.resize(candidate, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+        grayscale = cv2.cvtColor(enlarged, cv2.COLOR_BGR2GRAY)
+        enhanced = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)).apply(grayscale)
+        _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        texts.extend(read_ocr_text(reader, enlarged))
+        texts.extend(read_ocr_text(reader, binary))
 
-    # Apply threshold to get clear text
-    _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-    # OCR on enhanced plate region
-    results = reader.readtext(binary, detail=1, paragraph=False)
-
-    texts = []
-    for detection in results:
-        if len(detection) >= 3:
-            text = detection[1].strip()
-            confidence = float(detection[2])
-            # Filter by confidence
-            if text and confidence > 0.4:
-                texts.append(text)
-
-    return "\n".join(texts)
+    return "\n".join(dict.fromkeys(texts))
 
 
 def extract_all_text_with_details(filepath: str) -> list[tuple[str, float]]:
@@ -98,19 +102,13 @@ def extract_text(filepath: str) -> str:
         if image is None:
             raise ValueError("Unable to read image")
 
-        # Strategy 1: Extract from plate region
         plate_text = extract_plate_region_text(image)
-        if plate_text:
-            logger.debug(f"Extracted from plate region: {plate_text[:100]}")
-            return plate_text
-
-        # Strategy 2: Fall back to full image
         detections = extract_all_text_with_details(filepath)
-        if not detections:
-            return ""
-
-        # Return all text sorted by confidence (high to low)
-        return "\n".join(text for text, _ in detections)
+        full_image_text = "\n".join(text for text, _ in detections)
+        extracted_text = "\n".join(text for text in (plate_text, full_image_text) if text)
+        if extracted_text:
+            logger.debug("Extracted OCR text: %s", extracted_text[:100])
+        return extracted_text
     except Exception as e:
         logger.exception("Text extraction failed: %s", e)
         raise ValueError("Unable to extract text from image") from e

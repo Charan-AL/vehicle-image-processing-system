@@ -20,16 +20,17 @@ STATE_CODE_PATTERN = "|".join(sorted(INDIAN_STATES, key=len, reverse=True))
 STANDARD_PLATE_PATTERN = rf"(?:{STATE_CODE_PATTERN})\d{{1,2}}[A-Z]{{0,3}}\d{{1,5}}"
 
 # Bharat series: 01BH1234AB
-BHARAT_SERIES_PATTERN = r"\d{{2}}BH\d{{1,5}}[A-Z]{{1,2}}"
+BHARAT_SERIES_PATTERN = r"\d{2}BH\d{1,5}[A-Z]{1,2}"
 
 # Combined pattern for searching
 INDIAN_PLATE_SEARCH_PATTERN = re.compile(
     rf"({STANDARD_PLATE_PATTERN}|{BHARAT_SERIES_PATTERN})"
 )
 
-INDIAN_PLATE_VALIDATE_PATTERN = re.compile(
-    rf"^(?:{STANDARD_PLATE_PATTERN}|{BHARAT_SERIES_PATTERN})$"
+STANDARD_PLATE_VALIDATE_PATTERN = re.compile(
+    rf"^(?:{STATE_CODE_PATTERN})\d{{1,2}}[A-Z]{{0,3}}\d{{4}}$"
 )
+BHARAT_SERIES_VALIDATE_PATTERN = re.compile(r"^\d{2}BH\d{4}[A-Z]{1,2}$")
 
 # Remove non-alphanumeric and common OCR separators
 SEPARATORS_PATTERN = re.compile(r"[\s\-./·|]+")
@@ -94,6 +95,14 @@ def correct_ocr_misreadings(text: str) -> str:
     return corrected
 
 
+def find_valid_plate_match(text: str) -> str | None:
+    for match in INDIAN_PLATE_SEARCH_PATTERN.finditer(text):
+        plate = match.group(0)
+        if is_valid_registration_number(plate):
+            return plate
+    return None
+
+
 def find_registration_number(ocr_text: str | None) -> str | None:
     """Find the first valid Indian registration number in OCR text.
 
@@ -114,9 +123,8 @@ def find_registration_number(ocr_text: str | None) -> str | None:
     logger.debug(f"Normalized combined: {repr(normalized_combined[:100] if normalized_combined else None)}")
 
     if normalized_combined:
-        match = INDIAN_PLATE_SEARCH_PATTERN.search(normalized_combined)
-        if match:
-            plate = match.group(0)
+        plate = find_valid_plate_match(normalized_combined)
+        if plate:
             logger.info(f"Found plate (direct): {plate}")
             return plate
 
@@ -126,9 +134,8 @@ def find_registration_number(ocr_text: str | None) -> str | None:
         logger.debug(f"Corrected combined: {repr(corrected_combined[:100] if corrected_combined else None)}")
 
         if corrected_combined != normalized_combined:
-            match = INDIAN_PLATE_SEARCH_PATTERN.search(corrected_combined)
-            if match:
-                plate = match.group(0)
+            plate = find_valid_plate_match(corrected_combined)
+            if plate:
                 logger.info(f"Found plate (corrected): {plate}")
                 return plate
 
@@ -144,9 +151,8 @@ def find_registration_number(ocr_text: str | None) -> str | None:
         normalized_line = normalize_plate_text(line)
         if normalized_line:
             logger.debug(f"Line {idx} normalized: {repr(normalized_line)}")
-            match = INDIAN_PLATE_SEARCH_PATTERN.search(normalized_line)
-            if match:
-                plate = match.group(0)
+            plate = find_valid_plate_match(normalized_line)
+            if plate:
                 logger.info(f"Found plate (line {idx} direct): {plate}")
                 return plate
 
@@ -154,9 +160,8 @@ def find_registration_number(ocr_text: str | None) -> str | None:
             corrected_line = correct_ocr_misreadings(normalized_line)
             if corrected_line != normalized_line:
                 logger.debug(f"Line {idx} corrected: {repr(corrected_line)}")
-                match = INDIAN_PLATE_SEARCH_PATTERN.search(corrected_line)
-                if match:
-                    plate = match.group(0)
+                plate = find_valid_plate_match(corrected_line)
+                if plate:
                     logger.info(f"Found plate (line {idx} corrected): {plate}")
                     return plate
 
@@ -165,35 +170,18 @@ def find_registration_number(ocr_text: str | None) -> str | None:
 
 
 def is_valid_registration_number(ocr_text: str | None) -> bool:
-    """Check if text exactly matches a valid Indian plate format."""
+    """Check whether text exactly matches a supported Indian plate format."""
     normalized_text = normalize_plate_text(ocr_text)
     if not normalized_text:
         return False
 
-    # Must match the pattern
-    if not INDIAN_PLATE_VALIDATE_PATTERN.fullmatch(normalized_text):
-        # Try with corrections
-        corrected = correct_ocr_misreadings(normalized_text)
-        if not INDIAN_PLATE_VALIDATE_PATTERN.fullmatch(corrected):
-            return False
-        normalized_text = corrected
+    if STANDARD_PLATE_VALIDATE_PATTERN.fullmatch(normalized_text):
+        return True
+    if BHARAT_SERIES_VALIDATE_PATTERN.fullmatch(normalized_text):
+        return True
 
-    # Additional validation: check for typical Indian plate characteristics
-    # Standard plates usually have: StateCode (2) + District (1-2 digits) + Letters (0-3) + Serial (4-5 digits)
-    # They should have at least 8 characters total and no more than 12
-    if not (8 <= len(normalized_text) <= 12):
-        return False
-
-    # At least 4 digits in the serial number portion (last part)
-    # Extract the last contiguous digit sequence
-    last_digits = ""
-    for char in reversed(normalized_text):
-        if char.isdigit():
-            last_digits = char + last_digits
-        else:
-            break
-
-    if len(last_digits) < 4:
-        return False
-
-    return True
+    corrected = correct_ocr_misreadings(normalized_text)
+    return bool(
+        STANDARD_PLATE_VALIDATE_PATTERN.fullmatch(corrected)
+        or BHARAT_SERIES_VALIDATE_PATTERN.fullmatch(corrected)
+    )

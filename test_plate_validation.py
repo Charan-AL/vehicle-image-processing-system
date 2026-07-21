@@ -22,6 +22,14 @@ def test_registration_number_is_found_in_combined_ocr_text():
     assert find_registration_number(ocr_text) == "MH12NW8556"
 
 
+def test_complete_plate_is_preferred_over_truncated_match():
+    assert find_registration_number("MH8556 MH 12 NH 8556") == "MH12NH8556"
+
+
+def test_truncated_plate_match_is_rejected():
+    assert find_registration_number("MH8556") is None
+
+
 def test_unrecognized_state_code_is_invalid():
     assert is_valid_registration_number("RY775590") is False
     assert find_registration_number("PUNE FC ROAD 7755900813 RY775590") is None
