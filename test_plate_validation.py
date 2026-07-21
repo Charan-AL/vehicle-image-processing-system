@@ -26,6 +26,15 @@ def test_complete_plate_is_preferred_over_truncated_match():
     assert find_registration_number("MH8556 MH 12 NH 8556") == "MH12NH8556"
 
 
+def test_plate_series_letters_are_not_rewritten_as_digits():
+    assert find_registration_number("MH 12 N H 8556") == "MH12NH8556"
+    assert is_valid_registration_number("MH12NH8556") is True
+
+
+def test_ocr_corrections_only_change_numeric_plate_sections():
+    assert find_registration_number("MH 1Z NH 8S56") == "MH12NH8556"
+
+
 def test_truncated_plate_match_is_rejected():
     assert find_registration_number("MH8556") is None
 

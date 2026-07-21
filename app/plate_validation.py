@@ -63,36 +63,24 @@ def normalize_plate_text(ocr_text: str | None) -> str | None:
 
 
 def correct_ocr_misreadings(text: str) -> str:
-    """Attempt to fix common OCR character confusions.
+    """Correct ambiguous characters only in the numeric sections of one plate."""
+    normalized = normalize_plate_text(text)
+    if not normalized or normalized[:2] not in INDIAN_STATES:
+        return text
 
-    Apply corrections character by character in context-aware ways.
-    """
-    corrected = text
+    for series_length in range(4):
+        serial_start = 4 + series_length
+        if len(normalized) != serial_start + 4:
+            continue
 
-    # Generic character replacements - the most common OCR errors
-    # Do multiple passes for better coverage
-    for _ in range(2):
-        for wrong, right in OCR_CORRECTIONS.items():
-            corrected = corrected.replace(wrong, right)
+        district = normalized[2:4].translate(str.maketrans(OCR_CORRECTIONS))
+        series = normalized[4:serial_start]
+        serial = normalized[serial_start:].translate(str.maketrans(OCR_CORRECTIONS))
+        corrected = f"{normalized[:2]}{district}{series}{serial}"
+        if STANDARD_PLATE_VALIDATE_PATTERN.fullmatch(corrected):
+            return corrected
 
-    # Try to find and fix partially correct state codes
-    # Look for 2-letter patterns that are close to valid state codes
-    for state in sorted(INDIAN_STATES, key=len, reverse=True):
-        for i in range(max(0, len(corrected) - 2)):
-            if i + 2 <= len(corrected):
-                two_chars = corrected[i:i+2]
-                if len(two_chars) == 2 and two_chars not in INDIAN_STATES:
-                    # Count matching characters
-                    score = sum(1 for a, b in zip(two_chars, state) if a.upper() == b)
-                    if score == 2:  # Exact match - skip
-                        continue
-                    if score == 1:  # One char matches - likely a corruption, try fixing
-                        # Check if replacing improves things
-                        test_corrected = corrected[:i] + state + corrected[i+2:]
-                        # Verify it makes sense (next char should match pattern)
-                        corrected = test_corrected
-
-    return corrected
+    return normalized
 
 
 def find_valid_plate_match(text: str) -> str | None:
