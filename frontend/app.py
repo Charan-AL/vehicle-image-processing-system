@@ -34,7 +34,7 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file is not None:
-    st.image(uploaded_file, caption=uploaded_file.name, use_container_width=True)
+    st.image(uploaded_file, caption=uploaded_file.name, width="stretch")
 
 if st.button("Upload", type="primary", disabled=uploaded_file is None):
     try:

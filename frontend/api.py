@@ -35,7 +35,8 @@ def _request_json(method: str, path: str, **kwargs: Any) -> dict[str, Any]:
             raise APIError("The backend returned an invalid response.") from error
 
     try:
-        detail = response.json().get("detail")
+        error_body = response.json()
+        detail = error_body.get("detail") if isinstance(error_body, dict) else None
     except ValueError:
         detail = None
     message = detail or f"Backend request failed with status {response.status_code}."
