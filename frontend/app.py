@@ -69,8 +69,17 @@ if st.session_state.processing_id is not None:
             first_row[0].metric("Blur Score", result.get("blur_score"))
             first_row[1].metric("Brightness Score", result.get("brightness_score"))
 
+            st.text_area(
+                "OCR Text",
+                result.get("extracted_text") or "No text detected",
+                disabled=True,
+            )
+
             second_row = st.columns(2)
-            second_row[0].metric("Number Plate", result.get("plate_text") or "Not detected")
+            second_row[0].metric(
+                "Vehicle Plate Number",
+                result.get("plate_text") or "Not detected",
+            )
             second_row[1].metric(
                 "Plate Valid",
                 "Yes" if result.get("plate_valid") else "No",
