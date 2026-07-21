@@ -6,6 +6,7 @@ from typing import Any
 
 import cv2
 import easyocr
+import numpy as np
 
 from app.plate_validation import find_registration_number, normalize_plate_text
 
@@ -21,14 +22,98 @@ def get_ocr_reader() -> easyocr.Reader:
     return easyocr.Reader(["en"], gpu=False)
 
 
+def extract_plate_region_text(image: np.ndarray) -> str:
+    """Extract text specifically from the license plate region.
+
+    Uses color and position heuristics to isolate the plate area.
+    """
+    h, w = image.shape[:2]
+    reader = get_ocr_reader()
+
+    # License plates are typically in lower half of vehicle images
+    # Scan from 60% down to 95% of image height
+    plate_roi_start = int(h * 0.6)
+    plate_roi_end = int(h * 0.95)
+    plate_region = image[plate_roi_start:plate_roi_end, :]
+
+    # Enhance contrast to make plate text more readable
+    if len(plate_region.shape) == 3:
+        gray = cv2.cvtColor(plate_region, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = plate_region
+
+    # Apply CLAHE for better contrast
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(gray)
+
+    # Apply threshold to get clear text
+    _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # OCR on enhanced plate region
+    results = reader.readtext(binary, detail=1, paragraph=False)
+
+    texts = []
+    for detection in results:
+        if len(detection) >= 3:
+            text = detection[1].strip()
+            confidence = float(detection[2])
+            # Filter by confidence
+            if text and confidence > 0.4:
+                texts.append(text)
+
+    return "\n".join(texts)
+
+
+def extract_all_text_with_details(filepath: str) -> list[tuple[str, float]]:
+    """Extract ALL text from image with confidence scores.
+
+    Returns:
+        List of (text, confidence) tuples sorted by confidence descending
+    """
+    reader = get_ocr_reader()
+    results = reader.readtext(filepath, detail=1, paragraph=False)
+
+    detections = []
+    for detection in results:
+        if len(detection) >= 3:
+            text = detection[1].strip()
+            confidence = float(detection[2])
+            if text:
+                detections.append((text, confidence))
+
+    # Sort by confidence descending
+    detections.sort(key=lambda x: x[1], reverse=True)
+    return detections
+
+
 def extract_text(filepath: str) -> str:
-    """Extract and combine every English text region found in an image."""
-    text_regions = get_ocr_reader().readtext(filepath, detail=0, paragraph=False)
-    return "\n".join(
-        normalized_text
-        for text in text_regions
-        if (normalized_text := " ".join(text.split()))
-    )
+    """Extract text with focus on license plate region.
+
+    Strategy:
+    1. Try to extract from plate region specifically
+    2. Fall back to full image extraction
+    """
+    try:
+        image = cv2.imread(filepath)
+        if image is None:
+            raise ValueError("Unable to read image")
+
+        # Strategy 1: Extract from plate region
+        plate_text = extract_plate_region_text(image)
+        if plate_text:
+            logger.debug(f"Extracted from plate region: {plate_text[:100]}")
+            return plate_text
+
+        # Strategy 2: Fall back to full image
+        detections = extract_all_text_with_details(filepath)
+        if not detections:
+            return ""
+
+        # Return all text sorted by confidence (high to low)
+        return "\n".join(text for text, _ in detections)
+    except Exception as e:
+        logger.exception("Text extraction failed: %s", e)
+        raise ValueError("Unable to extract text from image") from e
 
 
 def analyze_image(filepath: str) -> dict[str, Any]:
@@ -49,9 +134,10 @@ def analyze_image(filepath: str) -> dict[str, Any]:
     plate_text = None
     plate_valid = None
     try:
-        normalized_ocr_text = normalize_plate_text(extract_text(filepath))
-        plate_text = find_registration_number(normalized_ocr_text)
-        if normalized_ocr_text:
+        ocr_text = extract_text(filepath)
+        if ocr_text:
+            # find_registration_number handles normalization internally
+            plate_text = find_registration_number(ocr_text)
             plate_valid = plate_text is not None
             remarks += " Valid registration number." if plate_valid else " Invalid registration number."
         else:
