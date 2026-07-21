@@ -1,4 +1,8 @@
-from app.plate_validation import is_valid_registration_number, normalize_plate_text
+from app.plate_validation import (
+    find_registration_number,
+    is_valid_registration_number,
+    normalize_plate_text,
+)
 
 
 def test_standard_plate_with_ocr_separators_is_normalized_and_valid():
@@ -10,6 +14,12 @@ def test_standard_plate_with_ocr_separators_is_normalized_and_valid():
 
 def test_standard_plate_without_series_is_valid():
     assert is_valid_registration_number("MH 12 1234") is True
+
+
+def test_registration_number_is_found_in_combined_ocr_text():
+    ocr_text = "PUNE FC ROAD MH 12 NW 8556 CNG"
+
+    assert find_registration_number(ocr_text) == "MH12NW8556"
 
 
 def test_delhi_style_plate_with_single_letter_series_is_valid():

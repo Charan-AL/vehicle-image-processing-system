@@ -8,6 +8,9 @@ BHARAT_SERIES_PLATE_PATTERN = r"\d{2}BH\d{1,4}[A-Z]{1,2}"
 INDIAN_PLATE_PATTERN = re.compile(
     rf"^(?:{STANDARD_PLATE_PATTERN}|{BHARAT_SERIES_PLATE_PATTERN})$"
 )
+INDIAN_PLATE_SEARCH_PATTERN = re.compile(
+    rf"(?:{STANDARD_PLATE_PATTERN}|{BHARAT_SERIES_PLATE_PATTERN})"
+)
 OCR_SEPARATORS_PATTERN = re.compile(r"[\s\-./]+")
 
 
@@ -18,6 +21,16 @@ def normalize_plate_text(ocr_text: str | None) -> str | None:
 
     normalized_text = OCR_SEPARATORS_PATTERN.sub("", ocr_text.upper())
     return normalized_text or None
+
+
+def find_registration_number(ocr_text: str | None) -> str | None:
+    """Find the first supported registration number in combined OCR text."""
+    normalized_text = normalize_plate_text(ocr_text)
+    if not normalized_text:
+        return None
+
+    match = INDIAN_PLATE_SEARCH_PATTERN.search(normalized_text)
+    return match.group(0) if match else None
 
 
 def is_valid_registration_number(ocr_text: str | None) -> bool:

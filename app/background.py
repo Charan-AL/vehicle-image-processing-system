@@ -47,7 +47,10 @@ def process_image(image_id: int) -> None:
                 if result is None:
                     result = AnalysisResult(image_id=image.id)
                     db.add(result)
-                result.remarks = "Processing failed."
+                result.plate_text = None
+                result.plate_valid = None
+                result.duplicate = None
+                result.remarks = "Processing failed. Check the server logs for details."
                 result.completed_at = datetime.utcnow()
                 image.status = "failed"
                 db.commit()

@@ -7,7 +7,7 @@ from typing import Any
 import cv2
 import easyocr
 
-from app.plate_validation import is_valid_registration_number, normalize_plate_text
+from app.plate_validation import find_registration_number, normalize_plate_text
 
 
 BLUR_THRESHOLD = 100.0
@@ -49,9 +49,10 @@ def analyze_image(filepath: str) -> dict[str, Any]:
     plate_text = None
     plate_valid = None
     try:
-        plate_text = normalize_plate_text(extract_text(filepath))
-        if plate_text:
-            plate_valid = is_valid_registration_number(plate_text)
+        normalized_ocr_text = normalize_plate_text(extract_text(filepath))
+        plate_text = find_registration_number(normalized_ocr_text)
+        if normalized_ocr_text:
+            plate_valid = plate_text is not None
             remarks += " Valid registration number." if plate_valid else " Invalid registration number."
         else:
             remarks += " No text detected."
