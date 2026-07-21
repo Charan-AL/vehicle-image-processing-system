@@ -3,7 +3,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Path, UploadFile, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -76,8 +76,11 @@ async def upload_image(
         await file.close()
 
 
+@router.get("/status/{image_id}", response_model=StatusResponse)
 @router.get("/images/{image_id}/status", response_model=StatusResponse)
-def get_image_status(image_id: int, db: Session = Depends(get_db)) -> StatusResponse:
+def get_image_status(
+    image_id: int = Path(..., gt=0), db: Session = Depends(get_db)
+) -> StatusResponse:
     """Return the current processing status for an uploaded image."""
     image = db.get(Image, image_id)
     if image is None:
