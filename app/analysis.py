@@ -14,6 +14,8 @@ from app.plate_validation import find_registration_number
 BLUR_THRESHOLD = 100.0
 LOW_LIGHT_THRESHOLD = 80.0
 OCR_CONFIDENCE_THRESHOLD = 0.25
+PLATE_OCR_CONFIDENCE_THRESHOLD = 0.1
+PLATE_CHARACTER_ALLOWLIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 logger = logging.getLogger(__name__)
 
 
@@ -41,15 +43,25 @@ def detect_brightness(image: np.ndarray) -> dict[str, float | bool]:
     }
 
 
-def read_ocr_text(reader: easyocr.Reader, image: np.ndarray) -> list[str]:
+def read_ocr_text(
+    reader: easyocr.Reader,
+    image: np.ndarray,
+    confidence_threshold: float = OCR_CONFIDENCE_THRESHOLD,
+    allowlist: str | None = None,
+) -> list[str]:
     """Return confident OCR detections in their visual reading order."""
-    results = reader.readtext(image, detail=1, paragraph=False)
+    results = reader.readtext(
+        image,
+        detail=1,
+        paragraph=False,
+        allowlist=allowlist,
+    )
     detections = [
         detection
         for detection in results
         if len(detection) >= 3
         and detection[1].strip()
-        and float(detection[2]) > OCR_CONFIDENCE_THRESHOLD
+        and float(detection[2]) > confidence_threshold
     ]
     detections.sort(key=lambda detection: (
         min(point[1] for point in detection[0]),
@@ -92,7 +104,10 @@ def extract_plate_region_text(image: np.ndarray) -> str:
 
     candidates.extend([
         lower_image,
-        image[int(height * 0.62):int(height * 0.82), :],
+        image[int(height * 0.52):int(height * 0.78), :],
+        image[int(height * 0.52):int(height * 0.78), int(width * 0.6):],
+        image[int(height * 0.62):int(height * 0.9), :int(width * 0.4)],
+        image[int(height * 0.62):int(height * 0.9), int(width * 0.6):],
     ])
     texts: list[str] = []
     for candidate in candidates:
@@ -116,7 +131,14 @@ def extract_plate_region_text(image: np.ndarray) -> str:
             11,
         )
         for variant in (enlarged, enhanced, binary, adaptive):
-            texts.extend(read_ocr_text(reader, variant))
+            texts.extend(
+                read_ocr_text(
+                    reader,
+                    variant,
+                    PLATE_OCR_CONFIDENCE_THRESHOLD,
+                    PLATE_CHARACTER_ALLOWLIST,
+                )
+            )
 
     return "\n".join(dict.fromkeys(texts))
 

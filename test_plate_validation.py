@@ -31,6 +31,28 @@ def test_plate_series_letters_are_not_rewritten_as_digits():
     assert is_valid_registration_number("MH12NH8556") is True
 
 
+def test_mh12n8556_is_valid():
+    assert is_valid_registration_number("MH12N8556") is True
+
+
+def test_mh12n8556_found_in_ocr_context():
+    ocr_text = "PUNE FC ROAD 7755900813 MH 12 N 8556 CNG"
+    assert find_registration_number(ocr_text) == "MH12N8556"
+
+
+def test_split_plate_tokens_across_lines_are_merged():
+    # Simulates EasyOCR returning plate parts on separate detection lines
+    # Strategy 4 (sliding-window) must reassemble them.
+    ocr_text = "PUNE FC ROAD\n7755900813\nMH12N\n8556\nCNG"
+    assert find_registration_number(ocr_text) == "MH12N8556"
+
+
+def test_split_plate_with_intervening_token_merged_by_window():
+    # Three-line window: "MH12N" + "W" + "8556" → "MH12NW8556"
+    ocr_text = "MH12N\nW\n8556"
+    assert find_registration_number(ocr_text) == "MH12NW8556"
+
+
 def test_ocr_corrections_only_change_numeric_plate_sections():
     assert find_registration_number("MH 1Z NH 8S56") == "MH12NH8556"
 

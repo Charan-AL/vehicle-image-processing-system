@@ -95,18 +95,18 @@ def find_registration_number(ocr_text: str | None) -> str | None:
     """Find the first valid Indian registration number in OCR text.
 
     Tries multiple strategies:
-    1. Search in normalized combined text
+    1. Search in normalized combined text (strips all whitespace)
     2. Apply OCR corrections to combined text
-    3. Search individual lines with both direct and corrected patterns
-    4. Return best match found
+    3. Search individual lines with direct and corrected patterns
+    4. Sliding-window of consecutive line pairs/triplets (handles split plates)
     """
     if not ocr_text:
         logger.debug("No text to extract registration from")
         return None
 
-    logger.debug(f"Input OCR text: {repr(ocr_text[:100])}")
+    logger.info(f"Input OCR text: {repr(ocr_text[:300])}")
 
-    # Strategy 1: Direct search on combined text
+    # Strategy 1: Direct search on combined text (all separators stripped)
     normalized_combined = normalize_plate_text(ocr_text)
     logger.debug(f"Normalized combined: {repr(normalized_combined[:100] if normalized_combined else None)}")
 
@@ -128,14 +128,10 @@ def find_registration_number(ocr_text: str | None) -> str | None:
                 return plate
 
     # Strategy 3: Search individual lines/words
-    lines = ocr_text.split("\n") if ocr_text else []
+    lines = [l for l in (ocr_text.split("\n") if ocr_text else []) if l.strip()]
     logger.debug(f"Searching {len(lines)} lines individually")
 
     for idx, line in enumerate(lines):
-        if not line.strip():
-            continue
-
-        # Try direct pattern on each line
         normalized_line = normalize_plate_text(line)
         if normalized_line:
             logger.debug(f"Line {idx} normalized: {repr(normalized_line)}")
@@ -144,7 +140,6 @@ def find_registration_number(ocr_text: str | None) -> str | None:
                 logger.info(f"Found plate (line {idx} direct): {plate}")
                 return plate
 
-            # Try with corrections on each line
             corrected_line = correct_ocr_misreadings(normalized_line)
             if corrected_line != normalized_line:
                 logger.debug(f"Line {idx} corrected: {repr(corrected_line)}")
@@ -153,7 +148,26 @@ def find_registration_number(ocr_text: str | None) -> str | None:
                     logger.info(f"Found plate (line {idx} corrected): {plate}")
                     return plate
 
-    logger.warning(f"No registration number found in OCR text")
+    # Strategy 4: sliding window of consecutive lines (handles OCR splitting a
+    # plate like "MH12N" / "W8556" onto separate detection lines with other text
+    # in between when the full-image OCR reads token-by-token).
+    for window in (2, 3):
+        for start in range(len(lines) - window + 1):
+            combined = " ".join(lines[start:start + window])
+            normalized_window = normalize_plate_text(combined)
+            if normalized_window:
+                plate = find_valid_plate_match(normalized_window)
+                if plate:
+                    logger.info(f"Found plate (window {start}+{window}): {plate}")
+                    return plate
+                corrected_window = correct_ocr_misreadings(normalized_window)
+                if corrected_window != normalized_window:
+                    plate = find_valid_plate_match(corrected_window)
+                    if plate:
+                        logger.info(f"Found plate (window {start}+{window} corrected): {plate}")
+                        return plate
+
+    logger.warning("No registration number found in OCR text")
     return None
 
 
