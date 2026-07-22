@@ -37,7 +37,7 @@ def migrate_database() -> None:
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])
-async def health_check():
+def health_check():
     """Check if the API and database are ready."""
     try:
         with engine.connect() as connection:
