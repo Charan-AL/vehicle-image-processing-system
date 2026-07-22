@@ -125,7 +125,7 @@ def extract_plate_region_text(image: np.ndarray) -> str:
     # Cap candidate regions to keep OCR work bounded. Yellow-mask hits are
     # prioritised; the fallback strips are appended last so they are the
     # ones dropped when the list is long.
-    MAX_CANDIDATES = 8
+    MAX_CANDIDATES = 4
     candidates = candidates[:MAX_CANDIDATES]
     texts: list[str] = []
     for candidate in candidates:
@@ -140,20 +140,12 @@ def extract_plate_region_text(image: np.ndarray) -> str:
             255,
             cv2.THRESH_BINARY + cv2.THRESH_OTSU,
         )
-        adaptive = cv2.adaptiveThreshold(
-            enhanced,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            31,
-            11,
-        )
         sharpened = cv2.filter2D(
             enhanced,
             -1,
             np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]),
         )
-        for variant in (enlarged, enhanced, binary, adaptive, sharpened):
+        for variant in (enlarged, binary, sharpened):
             texts.extend(
                 read_ocr_text(
                     reader,
