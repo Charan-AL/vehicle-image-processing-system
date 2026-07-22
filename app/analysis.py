@@ -16,6 +16,7 @@ LOW_LIGHT_THRESHOLD = 80.0
 OCR_CONFIDENCE_THRESHOLD = 0.25
 PLATE_OCR_CONFIDENCE_THRESHOLD = 0.1
 PLATE_CHARACTER_ALLOWLIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+MAX_OCR_IMAGE_DIMENSION = 1600
 logger = logging.getLogger(__name__)
 
 
@@ -158,10 +159,10 @@ def extract_plate_region_text(image: np.ndarray) -> str:
     return "\n".join(dict.fromkeys(texts))
 
 
-def extract_all_text_with_details(filepath: str) -> list[tuple[str, float]]:
+def extract_all_text_with_details(image: str | np.ndarray) -> list[tuple[str, float]]:
     """Extract all OCR text with confidence scores."""
     reader = get_ocr_reader()
-    results = reader.readtext(filepath, detail=1, paragraph=False)
+    results = reader.readtext(image, detail=1, paragraph=False)
     detections: list[tuple[str, float]] = []
     for detection in results:
         if len(detection) < 3:
@@ -181,9 +182,15 @@ def extract_text(filepath: str) -> str:
         if image is None:
             raise ValueError("Unable to read image")
 
+        height, width = image.shape[:2]
+        largest_dimension = max(height, width)
+        if largest_dimension > MAX_OCR_IMAGE_DIMENSION:
+            scale = MAX_OCR_IMAGE_DIMENSION / largest_dimension
+            image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+
         plate_text = extract_plate_region_text(image)
         full_image_text = "\n".join(
-            text for text, _ in extract_all_text_with_details(filepath)
+            text for text, _ in extract_all_text_with_details(image)
         )
         extracted_text = "\n".join(
             text for text in (plate_text, full_image_text) if text
