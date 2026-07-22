@@ -31,6 +31,12 @@ services:
       - uploads_data:/app/uploads
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)\""]
+      interval: 15s
+      timeout: 10s
+      start_period: 90s
+      retries: 5
 
   frontend:
     build:
@@ -38,7 +44,8 @@ services:
       dockerfile: Dockerfile.frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
       BACKEND_URL: http://backend:8000
     ports:
