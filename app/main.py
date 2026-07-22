@@ -3,10 +3,12 @@ FastAPI application entry point.
 Initializes the FastAPI app with middleware, routers, and configurations.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
-from app.database import ensure_analysis_result_schema
+from app.database import engine, initialize_database
 from app.routes import router
 
 # Initialize FastAPI app
@@ -30,13 +32,22 @@ app.add_middleware(
 
 @app.on_event("startup")
 def migrate_database() -> None:
-    ensure_analysis_result_schema()
+    initialize_database()
 
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Check if the API is running."""
+    """Check if the API and database are ready."""
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database is not ready.",
+        ) from error
+
     return {"status": "ok", "message": "Vehicle Image Processing API is running"}
 
 # Root endpoint

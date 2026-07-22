@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 

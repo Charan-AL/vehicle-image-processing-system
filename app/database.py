@@ -54,6 +54,14 @@ SessionLocal = sessionmaker(
 Base = declarative_base()
 
 
+def initialize_database() -> None:
+    """Create missing tables and apply the small schema upgrades used by the app."""
+    from app.models import AnalysisResult, Image
+
+    Base.metadata.create_all(bind=engine)
+    ensure_analysis_result_schema()
+
+
 def ensure_analysis_result_schema() -> None:
     """Add the raw OCR output column to existing installations."""
     if not inspect(engine).has_table("analysis_results"):
