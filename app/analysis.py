@@ -19,10 +19,23 @@ PLATE_CHARACTER_ALLOWLIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 logger = logging.getLogger(__name__)
 
 
+# Model directory for pre-downloaded weights (avoids runtime HTTP fetch)
+_OCR_MODEL_DIR: str | None = None
+
+
+def configure_ocr_model_dir(model_dir: str) -> None:
+    global _OCR_MODEL_DIR
+    _OCR_MODEL_DIR = model_dir
+
+
 @lru_cache(maxsize=1)
 def get_ocr_reader() -> easyocr.Reader:
     """Create the EasyOCR reader once for the application process."""
-    return easyocr.Reader(["en"], gpu=False)
+    kwargs: dict = {"gpu": False}
+    if _OCR_MODEL_DIR:
+        kwargs["model_storage_directory"] = _OCR_MODEL_DIR
+        kwargs["download_enabled"] = False
+    return easyocr.Reader(["en"], **kwargs)
 
 
 def detect_blur(image: np.ndarray) -> dict[str, float | bool]:
@@ -109,6 +122,11 @@ def extract_plate_region_text(image: np.ndarray) -> str:
         image[int(height * 0.62):int(height * 0.9), :int(width * 0.4)],
         image[int(height * 0.62):int(height * 0.9), int(width * 0.6):],
     ])
+    # Cap candidate regions to keep OCR work bounded. Yellow-mask hits are
+    # prioritised; the fallback strips are appended last so they are the
+    # ones dropped when the list is long.
+    MAX_CANDIDATES = 8
+    candidates = candidates[:MAX_CANDIDATES]
     texts: list[str] = []
     for candidate in candidates:
         if candidate.size == 0:

@@ -27,6 +27,8 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/vehicle_db
       UPLOAD_DIR: /app/uploads
+      OCR_MODEL_DIR: /app/easyocr-models
+      PROCESSING_TIMEOUT_SECONDS: "180"
     volumes:
       - uploads_data:/app/uploads
     ports:

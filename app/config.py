@@ -29,6 +29,10 @@ UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 ALLOWED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png"}
 
+# OCR configuration
+OCR_MODEL_DIR = os.getenv("OCR_MODEL_DIR", "/app/easyocr-models")
+PROCESSING_TIMEOUT_SECONDS = int(os.getenv("PROCESSING_TIMEOUT_SECONDS", "180"))
+
 # Configuration summary (for debugging)
 def get_config_summary() -> dict:
     """Return current configuration settings."""
@@ -37,5 +41,6 @@ def get_config_summary() -> dict:
         "database": DATABASE_URL.split("@")[1] if "@" in DATABASE_URL else "unknown",
         "sql_echo": SQL_ECHO,
         "max_upload_size_mb": MAX_UPLOAD_SIZE // (1024 * 1024),
-        "upload_directory": UPLOAD_DIR
+        "upload_directory": UPLOAD_DIR,
+        "processing_timeout_seconds": PROCESSING_TIMEOUT_SECONDS,
     }
