@@ -1,5 +1,7 @@
 import streamlit as st
 
+import streamlit as st
+
 from api import APIError, get_result, get_status, upload_image
 
 st.set_page_config(
