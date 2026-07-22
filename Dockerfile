@@ -3,13 +3,15 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install system dependencies required by OpenCV and EasyOCR
+# Install system dependencies required by OpenCV and Tesseract
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libsm6 \
     libxext6 \
     libxrender-dev \
     libgomp1 \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
@@ -27,6 +29,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender-dev \
     libgomp1 \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python dependencies from builder
@@ -40,10 +44,7 @@ COPY app/main.py .
 ENV PATH=/root/.local/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    OCR_MODEL_DIR=/app/easyocr-models
-
-RUN mkdir -p /app/easyocr-models && \
-    python -c "import easyocr; easyocr.Reader(['en'], gpu=False, model_storage_directory='/app/easyocr-models')"
+    TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
 
 # Create uploads directory
 RUN mkdir -p uploads

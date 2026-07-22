@@ -2,12 +2,12 @@
 
 import logging
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 import cv2
-import easyocr
 import numpy as np
+import pytesseract
+from pytesseract import Output
 
 from app.plate_validation import find_registration_number
 
@@ -21,27 +21,13 @@ MAX_OCR_IMAGE_DIMENSION = 1600
 logger = logging.getLogger(__name__)
 
 
-# Model directory for pre-downloaded weights (avoids runtime HTTP fetch)
-_OCR_MODEL_DIR: str | None = None
-
-
 def configure_ocr_model_dir(model_dir: str) -> None:
-    global _OCR_MODEL_DIR
-    _OCR_MODEL_DIR = model_dir
+    return None
 
 
 @lru_cache(maxsize=1)
-def get_ocr_reader() -> easyocr.Reader:
-    """Create the EasyOCR reader once for the application process."""
-    kwargs: dict = {"gpu": False}
-    if _OCR_MODEL_DIR:
-        model_dir = Path(_OCR_MODEL_DIR)
-        kwargs["model_storage_directory"] = str(model_dir)
-        kwargs["download_enabled"] = not all(
-            (model_dir / filename).is_file()
-            for filename in ("craft_mlt_25k.pth", "english_g2.pth")
-        )
-    return easyocr.Reader(["en"], **kwargs)
+def get_ocr_reader() -> str:
+    return "tesseract"
 
 
 def detect_blur(image: np.ndarray) -> dict[str, float | bool]:
@@ -63,30 +49,32 @@ def detect_brightness(image: np.ndarray) -> dict[str, float | bool]:
 
 
 def read_ocr_text(
-    reader: easyocr.Reader,
+    reader: str,
     image: np.ndarray,
     confidence_threshold: float = OCR_CONFIDENCE_THRESHOLD,
     allowlist: str | None = None,
 ) -> list[str]:
     """Return confident OCR detections in their visual reading order."""
-    results = reader.readtext(
+    config = "--psm 6"
+    if allowlist:
+        config += f" -c tessedit_char_whitelist={allowlist}"
+    data = pytesseract.image_to_data(
         image,
-        detail=1,
-        paragraph=False,
-        allowlist=allowlist,
+        lang="eng",
+        config=config,
+        output_type=Output.DICT,
     )
-    detections = [
-        detection
-        for detection in results
-        if len(detection) >= 3
-        and detection[1].strip()
-        and float(detection[2]) > confidence_threshold
-    ]
-    detections.sort(key=lambda detection: (
-        min(point[1] for point in detection[0]),
-        min(point[0] for point in detection[0]),
-    ))
-    return [detection[1].strip() for detection in detections]
+    detections: list[tuple[int, int, str]] = []
+    for index, text in enumerate(data["text"]):
+        text = text.strip()
+        try:
+            confidence = float(data["conf"][index]) / 100
+        except (TypeError, ValueError):
+            confidence = 0
+        if text and confidence > confidence_threshold:
+            detections.append((data["top"][index], data["left"][index], text))
+    detections.sort(key=lambda detection: (detection[0], detection[1]))
+    return [text for _, _, text in detections]
 
 
 def extract_plate_region_text(image: np.ndarray) -> str:
@@ -167,15 +155,23 @@ def extract_plate_region_text(image: np.ndarray) -> str:
 def extract_all_text_with_details(image: str | np.ndarray) -> list[tuple[str, float]]:
     """Extract all OCR text with confidence scores."""
     reader = get_ocr_reader()
-    results = reader.readtext(image, detail=1, paragraph=False)
+    config = "--psm 6"
+    data = pytesseract.image_to_data(
+        image,
+        lang="eng",
+        config=config,
+        output_type=Output.DICT,
+    )
     detections: list[tuple[str, float]] = []
-    for detection in results:
-        if len(detection) < 3:
+    for index, text in enumerate(data["text"]):
+        text = text.strip()
+        if not text:
             continue
-        text = detection[1].strip()
-        if text:
-            detections.append((text, float(detection[2])))
-
+        try:
+            confidence = float(data["conf"][index]) / 100
+        except (TypeError, ValueError):
+            confidence = 0
+        detections.append((text, confidence))
     detections.sort(key=lambda item: item[1], reverse=True)
     return detections
 
