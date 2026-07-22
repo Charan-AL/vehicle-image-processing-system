@@ -2,6 +2,7 @@
 
 import logging
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import cv2
@@ -34,8 +35,12 @@ def get_ocr_reader() -> easyocr.Reader:
     """Create the EasyOCR reader once for the application process."""
     kwargs: dict = {"gpu": False}
     if _OCR_MODEL_DIR:
-        kwargs["model_storage_directory"] = _OCR_MODEL_DIR
-        kwargs["download_enabled"] = False
+        model_dir = Path(_OCR_MODEL_DIR)
+        kwargs["model_storage_directory"] = str(model_dir)
+        kwargs["download_enabled"] = not all(
+            (model_dir / filename).is_file()
+            for filename in ("craft_mlt_25k.pth", "english_g2.pth")
+        )
     return easyocr.Reader(["en"], **kwargs)
 
 
