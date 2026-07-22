@@ -187,7 +187,7 @@ class ResultResponse(BaseModel):
         example=False
     )
 
-    # Normalized registration text extracted by EasyOCR
+    # Normalized registration text extracted by OCR
     # May be None if OCR fails or finds no text
     plate_text: Optional[str] = Field(
         default=None,

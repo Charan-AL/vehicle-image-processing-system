@@ -71,7 +71,7 @@ def process_image(image_id: int) -> None:
     finally:
         db.close()
 
-    # Run the heavy OCR work with a hard timeout so a hung EasyOCR call does
+    # Run the heavy OCR work with a hard timeout so it does
     # not leave the row in "processing" forever.
     future = _executor.submit(_run_analysis, filepath)
     try:

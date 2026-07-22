@@ -31,7 +31,7 @@ flowchart LR
     API --> DB[(PostgreSQL)]
     API --> Files[Upload storage]
     API --> Queue[In-process background task]
-    Queue --> OCR[OpenCV + EasyOCR]
+    Queue --> OCR[OpenCV + Tesseract]
     OCR --> DB
 ```
 
@@ -43,7 +43,7 @@ The system is intentionally small and deployable:
 - **FastAPI BackgroundTasks** decouple the upload response from expensive analysis.
 - **ThreadPoolExecutor** runs OCR work without blocking the Uvicorn event loop.
 - **OpenCV** performs blur, brightness, image resizing, color-region detection, and preprocessing.
-- **EasyOCR** extracts text from likely plate regions and the full image.
+- **Tesseract** extracts text from likely plate regions and the full image.
 - **Streamlit** provides a lightweight user interface that calls the backend API.
 - **Docker Compose** runs the three local services with database and service healthchecks.
 
@@ -59,7 +59,7 @@ The system is intentionally small and deployable:
 8. The API immediately returns the database image ID and current status.
 9. Background processing changes the image status to `processing`.
 10. OpenCV calculates blur and brightness signals.
-11. EasyOCR analyzes likely plate regions and the full image.
+11. Tesseract analyzes likely plate regions and the full image.
 12. OCR text is normalized and checked against supported Indian registration formats.
 13. The structured result is saved in `analysis_results`.
 14. The image status becomes `completed`, or `failed` if processing raises an error or exceeds the configured timeout.
@@ -316,7 +316,7 @@ Automatic retries are not currently implemented. A future queue worker should us
 vehicle-image-processing-system/
 ├── app/
 │   ├── __init__.py
-│   ├── analysis.py            # OpenCV and EasyOCR pipeline
+│   ├── analysis.py            # OpenCV and Tesseract pipeline
 │   ├── background.py          # Background worker and lifecycle handling
 │   ├── config.py              # Environment-backed configuration
 │   ├── database.py            # SQLAlchemy engine and initialization
@@ -351,7 +351,6 @@ vehicle-image-processing-system/
 | --- | --- | --- |
 | `DATABASE_URL` | PostgreSQL SQLAlchemy connection string | `postgresql://postgres:postgres@db:5432/vehicle_db` |
 | `UPLOAD_DIR` | Image storage directory | `/app/uploads` |
-| `OCR_MODEL_DIR` | EasyOCR model directory | `/app/easyocr-models` |
 | `PROCESSING_TIMEOUT_SECONDS` | Maximum processing wait before failure | `180` |
 | `DEBUG` | Application debug configuration | `False` in production |
 | `SQL_ECHO` | SQLAlchemy SQL logging toggle | `False` |
@@ -480,7 +479,6 @@ Deploy the Compose services as separate Railway services:
 ```text
 DEBUG=False
 UPLOAD_DIR=/app/uploads
-OCR_MODEL_DIR=/app/easyocr-models
 PROCESSING_TIMEOUT_SECONDS=180
 ```
 
@@ -560,7 +558,7 @@ Local storage keeps the take-home project easy to run and inspect.
 
 **Trade-off:** container filesystems are not suitable for durable multi-instance production storage without a persistent volume or object storage.
 
-### OpenCV and EasyOCR
+### OpenCV and Tesseract
 
 The combination provides practical quality heuristics and OCR without requiring a custom trained model.
 
@@ -590,7 +588,7 @@ The goal is a practical, debuggable baseline rather than a claim of perfect comp
 
 ## Scalability Concerns and Next Steps
 
-The main scaling constraints are EasyOCR CPU and memory usage, the fixed in-process worker pool, local file storage, and the lack of a durable queue.
+The main scaling constraints are CPU OCR processing, the fixed in-process worker pool, local file storage, and the lack of a durable queue.
 
 A production evolution could:
 
@@ -613,7 +611,7 @@ AI assistance was used to:
 
 - inspect the service and file structure
 - reason about FastAPI background processing and failure states
-- analyze Docker build logs and EasyOCR startup behavior
+- analyze Docker build logs and Tesseract runtime behavior
 - identify CPU OCR as the dominant processing cost
 - diagnose a real 180-second image-processing timeout
 - suggest bounded OCR candidate/variant processing and image resizing
@@ -627,7 +625,7 @@ The implementation still requires normal engineering review, test execution, and
 
 ## Known Limitations
 
-- EasyOCR currently runs on CPU.
+- Tesseract currently runs on CPU.
 - OCR and plate recognition are heuristic and probabilistic.
 - Difficult images may take a long time to process.
 - Background jobs are tied to the backend process.

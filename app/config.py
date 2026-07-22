@@ -30,7 +30,6 @@ ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 ALLOWED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png"}
 
 # OCR configuration
-OCR_MODEL_DIR = os.getenv("OCR_MODEL_DIR", "/app/easyocr-models")
 PROCESSING_TIMEOUT_SECONDS = int(os.getenv("PROCESSING_TIMEOUT_SECONDS", "180"))
 
 # Configuration summary (for debugging)

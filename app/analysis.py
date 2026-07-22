@@ -21,10 +21,6 @@ MAX_OCR_IMAGE_DIMENSION = 1600
 logger = logging.getLogger(__name__)
 
 
-def configure_ocr_model_dir(model_dir: str) -> None:
-    return None
-
-
 @lru_cache(maxsize=1)
 def get_ocr_reader() -> str:
     return "tesseract"

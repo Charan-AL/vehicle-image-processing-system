@@ -81,7 +81,7 @@ class AnalysisResult(Base):
     # Normalized registration number detected in the image
     plate_text = Column(Text, nullable=True)
 
-    # Raw text extracted from the image by EasyOCR
+    # Raw text extracted from the image by OCR
     extracted_text = Column(Text, nullable=True)
 
     # Whether detected plate text is valid

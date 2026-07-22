@@ -8,9 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.analysis import configure_ocr_model_dir
 from app.background import recover_stale_processing_jobs
-from app.config import OCR_MODEL_DIR
 from app.database import engine, initialize_database
 from app.routes import router
 
@@ -35,8 +33,6 @@ app.add_middleware(
 
 @app.on_event("startup")
 def migrate_database() -> None:
-    if OCR_MODEL_DIR:
-        configure_ocr_model_dir(OCR_MODEL_DIR)
     initialize_database()
     recover_stale_processing_jobs()
 

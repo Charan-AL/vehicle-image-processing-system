@@ -80,7 +80,7 @@ def create_tables():
         print("  - blur_score")
         print("  - brightness_score")
         print("  - plate_text (normalized registration number)")
-        print("  - extracted_text (all EasyOCR text)")
+        print("  - extracted_text (all OCR text)")
         print("  - plate_valid")
         print("  - duplicate")
         print("  - remarks")
