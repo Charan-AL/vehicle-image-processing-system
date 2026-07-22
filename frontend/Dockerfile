@@ -21,11 +21,10 @@ ENV PYTHONUNBUFFERED=1 \
     STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_ADDRESS=0.0.0.0
 
-# Create Streamlit config directory
-RUN mkdir -p ~/.streamlit
-
 # Create Streamlit config file to disable analytics and use headless mode
-RUN echo "[client]\nshowErrorDetails = true\n[logger]\nlevel = info\n[server]\nmaxUploadSize = 200\nheadless = true" > ~/.streamlit/config.toml
+RUN mkdir -p ~/.streamlit && \
+    printf '[client]\nshowErrorDetails = true\n[logger]\nlevel = "info"\n[server]\nmaxUploadSize = 200\nheadless = true\n' \
+    > ~/.streamlit/config.toml
 
 # Expose port
 EXPOSE 8501
